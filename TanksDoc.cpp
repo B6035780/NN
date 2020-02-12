@@ -223,8 +223,10 @@ CTanksDoc::CTanksDoc()
 			{
 				
 				//Inputs range between -1.0 and +1.0
-				//ppdTrainingInputs[i][j]=?????????????????????????
-				TRACE("you should scale the input in the range -1 to 1. see slide 3. once done, remove this line")
+				ppdTrainingInputs[i][j] = (2 * (
+					(ppdTrainingInputs[i][j] - pdMin[j] * ppdTrainingInputs[i][j]) /
+					(pdMax[j] * ppdTrainingInputs[i][j] - pdMin[j] * ppdTrainingInputs[i][j])));
+				//TRACE("you should scale the input in the range -1 to 1. see slide 3. once done, remove this line")
 			}
 		}
 		TRACE("successful.\n");
@@ -290,7 +292,7 @@ CTanksDoc::CTanksDoc()
 		{
 			//To perform a training step, tell the network how many patterns (examples) there are
 			//in the example data and pass it pointers to it.
-
+			pMLP->dTrainingStep(ulNumberOfPatterns, ppdTrainingInputs, ppdTrainingTargets);
 
 			//Every hundred training steps provide some feedback on the progress of the network's
 			//learning
@@ -313,7 +315,7 @@ CTanksDoc::CTanksDoc()
 		//produced. I.e. if the output varies between +1000 and -1000, then a termination error of, 
 		//say, 50 may be more suitable.
 		while(
-				pMLP->dGetPerformance()>???? &&
+				pMLP->dGetPerformance()>dTerminationError &&
 				!boGeneratingTrainingData
 				);
 

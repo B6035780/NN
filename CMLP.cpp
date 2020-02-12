@@ -13,6 +13,8 @@
 #include "assert.h"
 #include <fstream>
 #include "time.h"
+#include <chrono>
+#include <random>
 
 using namespace std;
 
@@ -41,13 +43,40 @@ CMLP::CMLP(
 	pTrainingStartDate=NULL;
 }
 
+std::mt19937 random_number_engine(time(0));
+
+
+int RandomNumberGenerator(int min, int max)
+{
+	std::uniform_int_distribution<int> distribution(min, max);
+	return distribution(random_number_engine);
+}
+
 void CMLP::AllocateMemory(void)
 {
 	unsigned long i;
 	//Allocate memory to store the current values of the input to hidden layer weights and
 	//their best values
+	ppdwih = new double*[ulNumberOfHiddenNodes];
+	ppdBestwih = new double*[ulNumberOfHiddenNodes];
+	assert(ppdwih && ppdBestwih);
+	for (i = 0; i < ulNumberOfHiddenNodes; i++)
+	{
+		ppdwih[i] = new double[ulNumberOfInputs + 1];
+		ppdBestwih[i] = new double[ulNumberOfInputs + 1];
+		assert(ppdwih[i] && ppdBestwih[i]);
+	}
 
 	//Do the same for the hidden to output layer weights
+	ppdwho = new double*[ulNumberOfOutputs];
+	ppdBestwho = new double*[ulNumberOfOutputs];
+	assert(ppdwho && ppdBestwho);
+	for (i = 0; i < ulNumberOfOutputs; i++)
+	{
+		ppdwho[i] = new double[ulNumberOfHiddenNodes + 1];
+		ppdBestwho[i] = new double[ulNumberOfHiddenNodes + 1];
+		assert(ppdwho[i] && ppdBestwho[i]);
+	}
 
 }
 
@@ -171,7 +200,7 @@ double CMLP::dTrainingStep(
 	{
 		for(j=0;j<ulNumberOfInputs+1;j++)
 		{
-			ppdwih[i][j]+=???;
+			ppdwih[i][j] += RandomNumberGenerator(-1 * dStepSize, 1 * dStepSize);
 		}
 	}
 	//And for the hidden to output layer weights
@@ -179,7 +208,7 @@ double CMLP::dTrainingStep(
 	{
 		for(j=0;j<ulNumberOfHiddenNodes+1;j++)
 		{
-			ppdwho[i][j]+=???;
+			ppdwho[i][j]+= RandomNumberGenerator(-1 * dStepSize, 1 * dStepSize);
 		}
 	}
 
@@ -266,18 +295,18 @@ double *CMLP::pdGetOutputs(
 	for(i=0;i<ulNumberOfHiddenNodes;i++)
 	{
 		//Each hidden neuron receives internal stimulation:
-		dStimulus=???;
+		dStimulus = ppdwih[i][0];
 		//And stimulation from input neurons (the activites of which are just the inputs to the 
 		//network, pdInputs) via the weights connecting it to each input (ppdwih). Remember
 		//that pdInputs contains scaled versions of x-displacement, y-displacement and wind 
 		//speed.
 		for(j=1;j<ulNumberOfInputs+1;j++)
 		{
-			dStimulus+=???;
+			dStimulus+= ppdwih[i][j] * pdInputs[j-1];
 		}
 		//The stimulation that a hidden neuron receives is translated into its level of activity
 		//by an "activation function":
-		pdah[i]=???;
+		pdah[i] = 1.0 / (1.0 + exp(-dStimulus));
 		//The logistic function (used in the line above) is by far the most common, though almost
 		//any function can be used. In fact, each hidden neuron can use a different function (though
 		//such a network can no longer be considered neural). Of course, the weights learnt during
@@ -294,11 +323,11 @@ double *CMLP::pdGetOutputs(
 	for(i=0;i<ulNumberOfOutputs;i++)
 	{
 		//Account for the neuron's internal stimulation.
-		dStimulus=???;
+		dStimulus = ppdwho[i][0];
 		for(j=1;j<ulNumberOfHiddenNodes+1;j++)
 		{
 			//Account for the stimulation it receives from the hidden neurons
-			dStimulus+=???;
+			dStimulus += ppdwho[i][j] * pdah[j - 1];
 		}
 		//Translate this stimulation into the activity of the output neuron using the activation 
 		//function:
@@ -350,7 +379,7 @@ double CMLP::dGetPerformance(
 			//Compute the squared error between the output produced by the network
 			//(the barrel angle it estimated as being correct) and the target output
 			//contained in the sample (the barrel angle that actually scored the hit)
-			dError+=???;
+			dError+= 0.5 * ( (ppdTargets[i][j] - pdOutputs[j]) * (ppdTargets[i][j] - pdOutputs[j]) );
 			//Again, multiple outputs are supported, but only one is used in this
 			//application. Occasionally, different error measures are employed. Using a number
 			//greater than 2.0 in the above equation tends to result in much less variation
@@ -368,7 +397,7 @@ double CMLP::dGetPerformance(
 	//Divide the error by the number of patterns to give the average error per sample - makes
 	//the error measure independent of the number of samples and hence a little more 
 	//interpretable.
-	dError/=???;
+	dError/=double(ulNumberOfPatterns);
 
 	//Return the computed error
 	return dError;
